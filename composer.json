@@ -1,0 +1,21 @@
+{
+  "name": "quizsl/web",
+  "description": "QuizSL Web.",
+  "version": "1.0.0",
+  "require": {
+    "cboden/ratchet": "^0.4.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "MyApp\\": "server/"
+    }
+  },
+  "scripts": {
+    "start": "php -S localhost:8000",
+    "ins": [
+      "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
+      "composer install",
+      "composer dump-autoload"
+    ]
+  }
+}
