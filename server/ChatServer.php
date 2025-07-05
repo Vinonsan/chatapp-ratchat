@@ -3,59 +3,36 @@ namespace MyApp;
 
 use Ratchet\MessageComponentInterface;
 use Ratchet\ConnectionInterface;
-use mysqli;
 
 class ChatServer implements MessageComponentInterface {
     protected $clients;
-    protected $conn;
 
     public function __construct() {
-        $this->clients = [];
-
-        // ✅ DB connection (adjust DB details here)
-        $this->conn = new mysqli("localhost", "root", "", "chatapp");
-        if ($this->conn->connect_error) {
-            echo "Database connection failed: " . $this->conn->connect_error . "\n";
-            exit;
-        }
+        $this->clients = new \SplObjectStorage;
+        echo "💬 ChatServer initialized\n";
     }
 
     public function onOpen(ConnectionInterface $conn) {
-        $this->clients[$conn->resourceId] = $conn;
-        echo "🟢 New connection: {$conn->resourceId}\n";
+        $this->clients->attach($conn);
+        echo "🔌 New connection: ({$conn->resourceId})\n";
     }
 
     public function onMessage(ConnectionInterface $from, $msg) {
-        $data = json_decode($msg, true);
-        if (!isset($data['sender'], $data['receiver'], $data['message'])) return;
+        echo "📩 Message from {$from->resourceId}: $msg\n";
 
-        $sender = $this->conn->real_escape_string($data['sender']);
-        $receiver = $this->conn->real_escape_string($data['receiver']);
-        $message = $this->conn->real_escape_string($data['message']);
-
-        // ✅ Save to DB
-        $this->conn->query("INSERT INTO messages (sender, receiver, message) VALUES ('$sender', '$receiver', '$message')");
-
-        $payload = json_encode([
-            'sender' => $sender,
-            'receiver' => $receiver,
-            'message' => $message
-        ]);
-
+        // Broadcast to all clients
         foreach ($this->clients as $client) {
-            $client->send($payload);
+            $client->send($msg);  // no DB, just forward the message
         }
-
-        echo "📩 {$sender} → {$receiver}: {$message}\n";
     }
 
     public function onClose(ConnectionInterface $conn) {
-        unset($this->clients[$conn->resourceId]);
-        echo "🔴 Disconnected: {$conn->resourceId}\n";
+        $this->clients->detach($conn);
+        echo "❌ Connection {$conn->resourceId} closed\n";
     }
 
     public function onError(ConnectionInterface $conn, \Exception $e) {
-        echo "❌ Error: {$e->getMessage()}\n";
+        echo "⚠️ Error: {$e->getMessage()}\n";
         $conn->close();
     }
 }
